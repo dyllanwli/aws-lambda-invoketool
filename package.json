@@ -1,0 +1,28 @@
+{
+  "name": "aws-lambda-invoketool",
+  "version": "1.0.0",
+  "description": "test invoketool for aws lambda",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dyllanwli/aws-lambda-invoketool.git"
+  },
+  "keywords": [
+    "aws",
+    "lambda"
+  ],
+  "author": "dyllanwli",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/dyllanwli/aws-lambda-invoketool/issues"
+  },
+  "homepage": "https://github.com/dyllanwli/aws-lambda-invoketool#readme",
+  "dependencies": {
+    "aws-sdk": "^2.467.0",
+    "parse-aws-lambda-name": "^1.0.0",
+    "pify": "^4.0.1"
+  }
+}

@@ -3,9 +3,9 @@
 const AWS = require('aws-sdk');
 const pify = require("pify");
 const parse = require('parse-aws-lambda-name');
+require("./env.js");
 
-
-module.exports.raw = new AWS.Lambda();
+module.exports.raw = new AWS.Lambda({apiVersion: '2015-03-31', region: process.env.region});
 
 module.exports.invoke = (name, payload) => {
     if (!name) {

@@ -3,7 +3,8 @@
 const AWS = require('aws-sdk');
 const pify = require("pify");
 const parse = require('parse-aws-lambda-name');
-require("./env.js");
+
+AWS.config.loadFromPath('./appstudioApiKey.json');
 
 module.exports.raw = new AWS.Lambda({apiVersion: '2015-03-31', region: process.env.region});
 
@@ -42,7 +43,7 @@ module.exports.invoke = (name, payload) => {
                 throw new Error(payload.errorMessage);
             }
 
-            return payload;
+            return JSON.stringify(payload);
         });
 };
 

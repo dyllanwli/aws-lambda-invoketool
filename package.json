@@ -22,6 +22,7 @@
   "homepage": "https://github.com/dyllanwli/aws-lambda-invoketool#readme",
   "dependencies": {
     "aws-sdk": "^2.467.0",
+    "mockjs": "^1.0.1-beta3",
     "parse-aws-lambda-name": "^1.0.0",
     "pify": "^4.0.1"
   }

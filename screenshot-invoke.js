@@ -3,13 +3,14 @@
 const AWS = require('aws-sdk');
 const pify = require("pify");
 const parse = require('parse-aws-lambda-name');
-const config = require('./config.json')
+const config = require('./config.json');
+const fs = require('fs');
+const path = require('path');
 let Random = require("mockjs").Random
 
 AWS.config.loadFromPath('./appstudioApiKey.json');
 const total_invokes = 1;
-const each_invokes = 50;
-let instance_count = 0;
+const each_invokes = 1;
 let invoke_count = 0;
 let instances = {};
 let lambda = new AWS.Lambda();
@@ -19,7 +20,19 @@ let randomRange = {
 };
 let portal = true;
 // if true, add protalURL and token from config file
-let protalParam = ''
+let protalParam = '';
+let restoreImg = true;
+const tempDir = './temp';
+// for image storage
+
+fs.readdirSync(tempDir, (err, files) => {
+    if (err) throw err;
+    for (const file of files) {
+        fs.unlink(path.join(tempDir, file), err => {
+            if (err) throw err;
+        })
+    }
+});
 
 module.exports.invokeParams = (name, payload) => {
     if (!name) {
@@ -52,7 +65,7 @@ module.exports.INVOKE_ASYNC = (params) => {
 
 function printImg(naming, payloadData) {
     let buffer = new Buffer(new Uint8Array(payloadData));
-    fs.writeFileSync(naming + "_output.png", buffer, 'binary');
+    fs.writeFileSync(tempDir + '/' + naming + "_output.png", buffer, 'binary');
 }
 
 function getRandomString() {
@@ -62,9 +75,19 @@ function getRandomString() {
 }
 
 module.exports.LAMBDA_INVOKE = (params) => {
-    lambda.invoke(params, function (err, data) {
+    lambda.invoke(params, (err, data) => {
         if (err) {
-            console.log(err, err.stack);
+            if (err.statusCode === 429) {
+                let paramsAsync = {
+                    FunctionName: params.FunctionName,
+                    InvokeArgs: params.Payload
+                }
+                lambda.invokeAsync(paramsAsync, (errAsync, data) => {
+                    if (errAsync) console.log("errAsync:", errAsync, err.stack); // an error occurred
+                    else console.log("Async retry:", data); // successful response
+                });
+            }
+            console.log(err);
         } else {
             // console.log(data);
             let logs = Buffer.from(data.LogResult, 'base64').toString('utf8');
@@ -79,6 +102,13 @@ module.exports.LAMBDA_INVOKE = (params) => {
                     instances[instanceID] = 0
                 }
                 console.log(instanceID, instances[instanceID], 'StatusCode:', data.StatusCode);
+                let date = new Date();
+                let payload = JSON.parse(data.Payload);
+                // console.log(payload);
+                if (restoreImg) {
+                    printImg(instanceID + '_' + date.getTime(), payload.body.data);
+                }
+
             } else {
                 if (data.Payload) {
                     console.log('missing instanceID; logs:', logs)
@@ -93,8 +123,8 @@ module.exports.LAMBDA_INVOKE = (params) => {
 
 module.exports.MAIN = (total_invokes, each_invokes) => {
     if (portal) {
-        console.log("add portal params");
         protalParam = config.portalUrl + config.token;
+        console.log("Portal params added:", protalParam);
     }
     for (let j = 0; j < total_invokes; j++) {
         for (let i = 0; i < each_invokes; i++) {

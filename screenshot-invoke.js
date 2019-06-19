@@ -30,21 +30,22 @@ const tempDir = './temp';
 
 
 // setting
-let restoreImg = false;
+let restoreImg = true;
 let portal = true;
 let randomObject = true;
 if (!randomObject) {
     config = require('./config-err.json');
 }
+module.exports.clearTemp = async (tempDir) => {
+    await fs.readdir(tempDir, (err, files) => {
+        if (err) throw err;
+        for (const file of files) {
+            console.log(path.join(tempDir, file))
+            fs.unlinkSync(path.join(tempDir, file))
+        }
+    });
+}
 
-fs.readdirSync(tempDir, (err, files) => {
-    if (err) throw err;
-    for (const file of files) {
-        fs.unlink(path.join(tempDir, file), err => {
-            if (err) throw err;
-        })
-    }
-});
 
 module.exports.invokeParams = (name, payload) => {
     if (!name) {
@@ -177,4 +178,5 @@ module.exports.MAIN = (total_invokes, each_invokes) => {
     }
 }
 
+this.clearTemp(tempDir);
 this.MAIN(total_invokes, each_invokes)

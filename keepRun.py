@@ -14,6 +14,7 @@ cmd2 = 'node screenshot-invoke.js'.split(" ")
 
 
 for i in range(100):
+    print("exec", i, "times")
     subPopen = subprocess.Popen(cmd2,
                 stdout=subprocess.PIPE, 
                 stderr=subprocess.STDOUT)

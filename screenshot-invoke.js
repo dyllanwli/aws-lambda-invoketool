@@ -3,7 +3,7 @@
 const AWS = require('aws-sdk');
 const pify = require("pify");
 const parse = require('parse-aws-lambda-name');
-const config = require('./config.json');
+let config = require('./config.json');
 const fs = require('fs');
 const path = require('path');
 let Random = require("mockjs").Random
@@ -11,13 +11,13 @@ let Random = require("mockjs").Random
 AWS.config.loadFromPath('./appstudioApiKey.json');
 let lambda = new AWS.Lambda();
 const total_invokes = 1;
-const each_invokes = 1;
+const each_invokes = 50;
 let invoke_count = 0;
 let instances = {};
 
 let randomRange = {
     min: 1000,
-    max: 789000
+    max: 800000
 };
 let retryMax = 2;
 let retryCounts = 0;
@@ -30,7 +30,7 @@ const tempDir = './temp';
 
 
 // setting
-let restoreImg = true;
+let restoreImg = false;
 let portal = true;
 let randomObject = true;
 if (!randomObject) {

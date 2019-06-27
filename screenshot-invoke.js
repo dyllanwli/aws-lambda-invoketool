@@ -3,39 +3,37 @@
 const AWS = require('aws-sdk');
 const pify = require("pify");
 const parse = require('parse-aws-lambda-name');
-let config = require('./config.json');
+
 const fs = require('fs');
 const path = require('path');
 let Random = require("mockjs").Random
 
 AWS.config.loadFromPath('./appstudioApiKey.json');
 let lambda = new AWS.Lambda();
-const total_invokes = 1;
-const each_invokes = 50;
+
+
 let invoke_count = 0;
 let instances = {};
 
-let randomRange = {
-    min: 1000,
-    max: 800000
-};
-let retryMax = 2;
-let retryCounts = 0;
-
-// if true, add protalURL and token from config file
-let protalParam = '';
-
-// for image storage
-const tempDir = './temp';
-
-
-// setting
-let restoreImg = false;
-let portal = true;
-let randomObject = true;
-if (!randomObject) {
-    config = require('./config-err.json');
+// ========= invoke config ==========
+let INVOKE_CONFIG = {
+    "restoreImg": true,
+    "portal": true,
+    "randomObject": true,
+    "randomRange": {
+        min: 1000,
+        max: 800000
+    },
+    "tempDir": './temp',
+    "retryMax": 0,
+    "retryCounts": 0,
+    "total_invokes": 1,
+    "each_invokes": 2,
+    "configFilePath": './config.json'
 }
+
+let config = require(INVOKE_CONFIG.configFilePath);
+
 module.exports.clearTemp = async (tempDir) => {
     await fs.readdir(tempDir, (err, files) => {
         if (err) throw err;
@@ -78,7 +76,7 @@ module.exports.INVOKE_ASYNC = (params) => {
 
 function printImg(naming, payloadData) {
     let buffer = new Buffer(new Uint8Array(payloadData));
-    fs.writeFileSync(tempDir + '/' + naming + "_output.png", buffer, 'binary');
+    fs.writeFileSync(INVOKE_CONFIG.tempDir + '/' + naming + "_output.png", buffer, 'binary');
 }
 
 function getRandomString() {
@@ -109,41 +107,40 @@ module.exports.LAMBDA_INVOKE = (params) => {
             console.log("==============================retry");
             this.LAMBDA_INVOKE(params);
         } else {
-            if (JSON.parse(data.Payload).hasOwnProperty('errorMessage')) {
-                console.log("Error:");
-                console.log(JSON.parse(data.Payload)['errorMessage']);
-                console.log("==============================retry");
-                this.wait(1000);
-                retryCounts += 1
-                if (retryCounts <= retryMax) {
-                    this.LAMBDA_INVOKE(params);
+            let logs = Buffer.from(data.LogResult, 'base64').toString('utf8');
+            // console.log(logs);
+            // let instanceID = logs.match(new RegExp("(?:\\$InstanceID: )(.*?)(?: \\$END)", "ig"));
+            let instanceID = logs.match(new RegExp("\\$InstanceID: (.*?) \\$END", "ig"));
+            if (instanceID) {
+                instanceID = instanceID[0].split(" ")[1];
+                if (instances.hasOwnProperty(instanceID)) {
+                    instances[instanceID] += 1
+                } else {
+                    instances[instanceID] = 0
                 }
-            } else {
-                let logs = Buffer.from(data.LogResult, 'base64').toString('utf8');
-                // console.log(logs);
-                // let instanceID = logs.match(new RegExp("(?:\\$InstanceID: )(.*?)(?: \\$END)", "ig"));
-                let instanceID = logs.match(new RegExp("\\$InstanceID: (.*?) \\$END", "ig"));
-                if (instanceID) {
-                    instanceID = instanceID[0].split(" ")[1];
-                    if (instances.hasOwnProperty(instanceID)) {
-                        instances[instanceID] += 1
-                    } else {
-                        instances[instanceID] = 0
+                console.log(instanceID, instances[instanceID], 'StatusCode:', data.StatusCode);
+                let date = new Date();
+                let payload = JSON.parse(data.Payload);
+                if (payload.hasOwnProperty('errorMessage')) {
+                    console.log(JSON.parse(data.Payload)['errorMessage']);
+                    if (INVOKE_CONFIG.retryCounts < INVOKE_CONFIG.retryMax) {
+                        console.log("==============================retry");
+                        this.wait(1000);
+                        INVOKE_CONFIG.retryCounts += 1
+                        this.LAMBDA_INVOKE(params);
                     }
-                    console.log(instanceID, instances[instanceID], 'StatusCode:', data.StatusCode);
-                    let date = new Date();
-                    let payload = JSON.parse(data.Payload);
-                    // console.log(payload);
-                    if (restoreImg) {
+                } else {
+                    if (INVOKE_CONFIG.restoreImg) {
+                        console.log("printing image")
                         printImg(instanceID + '_' + date.getTime(), payload.body.data);
                     }
-
+                }
+                // console.log(payload);
+            } else {
+                if (data.Payload) {
+                    console.log('missing instanceID; logs:', logs)
                 } else {
-                    if (data.Payload) {
-                        console.log('missing instanceID; logs:', logs)
-                    } else {
-                        console.log('missing data')
-                    }
+                    console.log('missing data')
                 }
             }
         }
@@ -152,21 +149,21 @@ module.exports.LAMBDA_INVOKE = (params) => {
 }
 
 module.exports.MAIN = (total_invokes, each_invokes) => {
-    if (portal) {
-        protalParam = config.portalUrl + config.token;
-        console.log("Portal params added:", protalParam);
+    if (INVOKE_CONFIG.portal) {
+        INVOKE_CONFIG.protalParam = config.portalUrl + config.token;
+        console.log("Portal params added:", INVOKE_CONFIG.protalParam);
     }
     for (let j = 0; j < total_invokes; j++) {
         for (let i = 0; i < each_invokes; i++) {
             let randomStr = ''
-            if (randomObject) {
-                randomStr = '&queryParameters=%7B%22objectIds%22:%22' + Random.natural(randomRange.min + j, randomRange.max) + '%22%7D';
+            if (INVOKE_CONFIG.randomObject) {
+                randomStr = '&queryParameters=%7B%22objectIds%22:%22' + Random.natural(INVOKE_CONFIG.randomRange.min + j, INVOKE_CONFIG.randomRange.max) + '%22%7D';
             }
             // get the url
             config.events.forEach(element => {
 
                 let params = this.invokeParams(config.name, Object.assign({}, element, {
-                    url: element.url + randomStr + protalParam
+                    url: element.url + randomStr + INVOKE_CONFIG.protalParam
                 }));
 
                 console.log("start invoke ", invoke_count);
@@ -178,5 +175,8 @@ module.exports.MAIN = (total_invokes, each_invokes) => {
     }
 }
 
-this.clearTemp(tempDir);
-this.MAIN(total_invokes, each_invokes)
+
+
+console.log(INVOKE_CONFIG);
+this.clearTemp(INVOKE_CONFIG.tempDir);
+this.MAIN(INVOKE_CONFIG.total_invokes, INVOKE_CONFIG.each_invokes)

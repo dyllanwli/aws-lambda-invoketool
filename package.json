@@ -23,7 +23,7 @@
   "dependencies": {
     "async": "^3.0.1",
     "async-retry": "^1.2.3",
-    "aws-sdk": "^2.467.0",
+    "aws-sdk": "^2.814.0",
     "mockjs": "^1.0.1-beta3",
     "node-fetch": "^2.6.0",
     "parse-aws-lambda-name": "^1.0.0",

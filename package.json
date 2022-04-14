@@ -21,7 +21,7 @@
   },
   "homepage": "https://github.com/dyllanwli/aws-lambda-invoketool#readme",
   "dependencies": {
-    "async": "^3.0.1",
+    "async": "^3.2.2",
     "async-retry": "^1.2.3",
     "aws-sdk": "^2.467.0",
     "mockjs": "^1.0.1-beta3",
